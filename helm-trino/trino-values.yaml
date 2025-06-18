@@ -1,0 +1,123 @@
+# https://trinodb.github.io/charts/charts/trino/
+
+# -- Override resource names to avoid name conflicts when deploying multiple
+# releases in the same namespace.
+# @raw
+# Example:
+# ```yaml
+# coordinatorNameOverride: trino-coordinator-adhoc
+# workerNameOverride: trino-worker-adhoc
+# nameOverride: trino-adhoc
+# ```
+nameOverride:
+coordinatorNameOverride:
+workerNameOverride:
+
+image:
+  tag: "476"
+
+catalogs:
+  # https://trino.io/docs/current/connector/iceberg.html
+  iceberg: |
+    connector.name=iceberg
+    iceberg.catalog.type=glue
+    fs.native-s3.enabled=true
+    s3.max-connections=500
+    iceberg.hive-catalog-name=hive
+  hive: |
+    connector.name=hive
+    hive.metastore=glue
+    hive.metastore-refresh-interval=1m
+    hive.metastore-cache-ttl=20m
+    hive.non-managed-table-writes-enabled=true
+    hive.storage-format=parquet
+    hive.compression-codec=zstd
+    fs.native-s3.enabled=true
+    s3.max-connections=500
+
+additionalConfigProperties:
+  - http-server.process-forwarded=true
+  - jmx.rmiregistry.port=9080
+  - jmx.rmiserver.port=9081
+
+service:
+  annotations: {}
+  type: ClusterIP
+  port: 8080
+  # service.nodePort -- The port the service listens on the host, for the `NodePort` type. If not set, Kubernetes will
+  # [allocate a port
+  # automatically](https://kubernetes.io/docs/concepts/services-networking/service/#nodeport-custom-port).
+  nodePort: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: false
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "trino-service-account"
+  # -- Annotations to add to the service account
+  annotations: {}
+
+server:
+  workers: 1
+  node:
+    # server.node.environment -- Supports templating with `tpl`.
+    environment: production
+    dataDir: /data/trino
+    pluginDir: /usr/lib/trino/plugin
+  log:
+    trino:
+      level: INFO
+  config:
+    path: /etc/trino
+    https:
+      enabled: false
+      port: 8443
+      keystore:
+        path: ""
+    # -- Trino supports multiple [authentication
+    # types](https://trino.io/docs/current/security/authentication-types.html):
+    # PASSWORD, CERTIFICATE, OAUTH2, JWT, KERBEROS.
+    authenticationType: ""
+    query:
+      maxMemory: "4GB"
+  autoscaling.enabled: false # default
+
+coordinator:
+  nodeSelector:
+    role: trino-coordinater
+  annotations: {}
+  labels: {}
+  jvm.maxHeapSize: "8G"
+  jvm.gcMethod.type: "UseG1GC"
+  jvm.gcMethod.g1.heapRegionSize: "32M"
+  config.query.maxMemoryPerNode: "1GB"
+  additionalJVMConfig:
+    - -Dcom.sun.management.jmxremote.rmi.port=9081
+  # resources:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
+
+worker:
+  nodeSelector:
+    role: trino-worker
+  annotations: {}
+  labels: {}
+  jvm.maxHeapSize: "8G"
+  jvm.gcMethod.type: "UseG1GC"
+  jvm.gcMethod.g1.heapRegionSize: "32M"
+  config.query.maxMemoryPerNode: "1GB"
+  additionalJVMConfig:
+    - -Dcom.sun.management.jmxremote.rmi.port=9081
+  # resources:
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi

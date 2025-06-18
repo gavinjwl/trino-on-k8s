@@ -1,0 +1,117 @@
+# trino-on-k8s-cluster.yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: trino-on-k8s-cluster
+  region: ap-northeast-1
+
+autoModeConfig:
+  enabled: true
+  # optional, defaults to [general-purpose, system].
+  # To disable creation of nodePools, set it to the empty array ([]).
+  nodePools:
+    - system
+
+# accessConfig:
+#   authenticationMode: API_AND_CONFIG_MAP
+#   accessEntries:
+#     - principalARN: arn:aws:iam::111122223333:user/my-user-name
+#       type: STANDARD
+#       kubernetesGroups: # optional Kubernetes groups
+#         - group1 # groups can used to give permissions via RBAC
+#         - group2
+
+#     - principalARN: arn:aws:iam::111122223333:role/role-name-1
+#       accessPolicies: # optional access polices
+#         - policyARN: arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy
+#           accessScope:
+#             type: namespace
+#             namespaces:
+#               - default
+#               - my-namespace
+#               - dev-*
+
+#     - principalARN: arn:aws:iam::111122223333:role/admin-role
+#       accessPolicies: # optional access polices
+#         - policyARN: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+#           accessScope:
+#             type: cluster
+
+#     - principalARN: arn:aws:iam::111122223333:role/role-name-2
+#       type: EC2_LINUX
+
+addons:
+  - name: vpc-cni
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+  - name: coredns
+    version: latest
+  - name: kube-proxy
+    version: latest
+
+vpc:
+  id: ""
+  subnets:
+    private:
+      ap-northeast-1a:
+        id: ""
+      ap-northeast-1c:
+        id: ""
+  clusterEndpoints:
+    privateAccess: true
+    publicAccess: true
+
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        namespace: trino
+        name: trino-service-account
+      roleName: trino-service-account-role
+      attachPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "glue:Get*"
+            Resource: "*"
+          - Effect: "Allow"
+            Action:
+              - "s3:GetObject*"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+            Resource: "arn:aws:s3:::<bucket-name>/*"
+          - Effect: "Allow"
+            Action:
+              - "s3:ListBucket"
+            Resource: "*"
+
+managedNodeGroups:
+  - name: trino-gateway-node-group
+    labels:
+      role: trino-gateway
+    instanceType: m7g.xlarge
+    minSize: 1
+    desiredCapacity: 1
+    maxSize: 2
+    volumeSize: 80
+    privateNetworking: true
+  - name: trino-coordinater-node-group
+    labels:
+      role: trino-coordinater
+    instanceType: m7g.xlarge
+    minSize: 1
+    desiredCapacity: 1
+    maxSize: 4
+    volumeSize: 100
+    privateNetworking: true
+  - name: trino-worker-node-group
+    labels:
+      role: trino-worker
+    instanceType: r7g.xlarge
+    minSize: 1
+    desiredCapacity: 1
+    maxSize: 8
+    volumeSize: 100
+    privateNetworking: true

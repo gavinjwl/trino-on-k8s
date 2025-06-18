@@ -1,0 +1,92 @@
+# Default values for trino.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  tag: "15"
+
+config:
+  serverConfig:
+    node.environment: production
+    http-server.http.port: 8080
+    http-server.http.enabled: true
+    http-server.process-forwarded: true
+  dataStore:
+    # -- The connection details for the backend database for Trino Gateway and Trino query history
+    jdbcUrl: jdbc:postgresql://postgres:5432/gateway
+    user: postgres
+    password: mysecretpassword
+    driver: org.postgresql.Driver
+  routing:
+    addXForwardedHeaders: false
+  routingRules:
+    rulesEngineEnabled: true
+    rulesType: FILE
+    rulesConfigPath: /etc/trino-gateway/rules/routing-rules.yaml
+  modules:
+    - io.trino.gateway.ha.module.QueryCountBasedRouterProvider
+  # BackendStateConfiguration is required for monitor type: METRICS
+  backendState:
+    username: "user"
+  clusterStatsConfiguration:
+    monitorType: METRICS
+  monitor:
+    # "metricMinimumValues", "taskDelaySeconds", "runningQueriesMetricName", "explicitPrepare",
+    # "retries", "metricsEndpoint", "queryTimeout", "queuedQueriesMetricName", "metricMaximumValues
+    metricsEndpoint: /metrics
+    retries: 1
+    taskDelaySeconds: 60
+    # runningQueriesMetricName: trino_execution_name_QueryManager_RunningQueries
+    # queuedQueriesMetricName: trino_execution_name_QueryManager_QueuedQueries
+
+volumes:
+  - name: routing-rules
+    configMap:
+      name: routing-rules
+      items:
+        - key: routing-rules.yaml
+          path: routing-rules.yaml
+
+volumeMounts:
+  - name: routing-rules
+    mountPath: /etc/trino-gateway/rules/routing-rules.yaml
+    subPath: routing-rules.yaml
+
+# -- Startup command for Trino Gateway process. Add additional Java options and other modifications as desired.
+command:
+  - "java"
+  - "-XX:MinRAMPercentage=80.0"
+  - "-XX:MaxRAMPercentage=80.0"
+  - "-jar"
+  - "/usr/lib/trino-gateway/gateway-ha-jar-with-dependencies.jar"
+  - "/etc/trino-gateway/config.yaml"
+
+service:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      name: gateway
+
+# -- Set a custom name for the gateway service
+serviceName: trino-gateway
+
+resources:
+  limits:
+    cpu: 1
+    memory: 2Gi
+  requests:
+    cpu: 1
+    memory: 2Gi
+
+nodeSelector:
+  role: trino-gateway
+
+podAnnotations: {}
+podLabels: {}
+
+serviceAccount:
+  create: true
+  automount: true
+  name: "trino-gateway"
