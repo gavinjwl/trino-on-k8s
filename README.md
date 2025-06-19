@@ -1,5 +1,21 @@
 # Trino on K8S
 
+```mermaid
+graph LR
+    client["client"]
+    client --> ingress
+    subgraph "K8S Cluster"
+        ingress --> trino_gateway["Trino Gateway"]
+        subgraph trino_gateway["Trino Gateway"]
+            routing_rules@{ shape: diamond, label: "Routing
+            Rules" }
+        end
+        routing_rules --> trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"]
+    end
+    trino_gateway <--->|States| postgres@{ shape: database, label: "PostgreSQL" }
+    trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"] <--> datalake@{ shape: lin-cyl, label: "Data Lake" }
+```
+
 ## Considerations and Limitations
 
 - OSS Trino doesn't support AWS Lakeformation ([re:Post](https://repost.aws/questions/QUSrcH4oLjRZ-U3xCGNmqXrg/can-you-use-oss-trino-on-emr-with-lake-formation-access-controls)), but [StarBurst does](https://docs.starburst.io/latest/security/aws-lake-formation.html).
