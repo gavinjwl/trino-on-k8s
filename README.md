@@ -93,15 +93,19 @@ routingRules:
         - 'Accept-Encoding'
 ```
 
+> Considering using external routing service since file based routing rules doesn't promise strong-consistency.
+
 #### Routing flow
 
 [Reference: routing-logic](https://trinodb.github.io/trino-gateway/routing-logic/)
 
 ![routing-flow](https://raw.githubusercontent.com/trinodb/trino-gateway/refs/heads/main/docs/assets/gateway-routing-flow.svg)
 
+> You MUST avoid the ordering issue by writing __atomic__ rules, so any query matches exactly one rule.
+
 #### Routing rules in FILE format
 
-Rules are stored as a multi-document YAML file. Also, you SHOULD avoid the ordering issue by writing __atomic__ rules, so any query matches exactly one rule.
+Rules are stored as a multi-document YAML file.
 
 ```yaml
 ---
