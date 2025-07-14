@@ -22,27 +22,44 @@ end
 Terminology
 
 1. Routing rules
-2. Backend: Trino cluster
-3. [Resource groups](https://trino.io/docs/current/admin/resource-groups.html#admin-resource-groups--page-root): Resource groups place limits on resource usage, and can enforce queueing policies on queries that run within them, or divide their resources among sub-groups.
-4. [Selector rules](https://trino.io/docs/current/admin/resource-groups.html#selector-rules): The selector rules for pattern matching use Java’s regular expression capabilities.
+2. Routing groups
+3. Backend: Trino cluster
+4. [Resource groups](https://trino.io/docs/current/admin/resource-groups.html#admin-resource-groups--page-root): Resource groups place limits on resource usage, and can enforce queueing policies on queries that run within them, or divide their resources among sub-groups.
+5. [Selector rules](https://trino.io/docs/current/admin/resource-groups.html#selector-rules): The selector rules for pattern matching use Java’s regular expression capabilities.
 
 ```mermaid
-graph LR
+flowchart LR
     client["client"]
     client --> lb["Load Balancer"]
 
-    lb["Load Balancer"] --> trino_gateway["Trino Gateway"]
+    lb --> trino_gateway
     subgraph trino_gateway["Trino Gateways"]
-        routing_rules@{ shape: diamond, label: "Routing
-        Rules" }
+        direction LR
+        routing_rules@{ shape: diamond, label: "Routing\nRules" }
+        rg1["RoutingGroup: adhoc"]
+        rg2["RoutingGroup: airflow"]
+        routing_rules --> rg1 & rg2
     end
 
-    routing_rules --> trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"]
-    trino_gateway <--->|"States
-    (backend_info, query_history, resource_groups and selectors)"| postgres@{ shape: database, label: "PostgreSQL" }
+    rg1 --> trino_cluster1["Trino Cluster"]
+    rg2 --> trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"]
+
     trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"] <--> datalake@{ shape: lin-cyl, label: "Data Lake" }
-    
+```
+
+### Trino Gateway, Routing rules, PostgreSQL and Trino cluster
+
+```mermaid
+flowchart LR
+    trino_gateway["Trino Gateways"]
+
+    trino_gateway <---->|"States
+    (backend_info, query_history, resource_groups and selectors)"| postgres@{ shape: database, label: "PostgreSQL" }
+
     postgres -.->|"resouce_groups and selectors"| trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"]
+    
+    trino_gateway --> routing_rules["File or Service
+    (Routing Rules)"]
 ```
 
 __IMPORTANT__: The query_history table stores limited information. To store more detailed query information, enable the [Kafka](https://trino.io/docs/current/admin/event-listeners-kafka.html), [HTTP](https://trino.io/docs/current/admin/event-listeners-http.html) or [MySQL](https://trino.io/docs/current/admin/event-listeners-mysql.html) listener in your Trino clusters.
@@ -203,6 +220,30 @@ External routing service should be able to implement following response body in 
         "x-trino-session": "query_max_memory=50GB,optimize_metadata_queries=false"
     }
 }
+```
+
+#### Routers
+
+__IMPORTANT__: [QueryCountBasedRouter](https://github.com/trinodb/trino-gateway/blob/main/gateway-ha/src/main/java/io/trino/gateway/ha/router/QueryCountBasedRouter.java)
+
+```yaml
+config:
+  # BackendStateConfiguration is required for monitor type: METRICS
+  # check out: https://github.com/trinodb/trino-gateway/blob/main/docs/routers.md
+  backendState:
+    username: "user"
+  clusterStatsConfiguration:
+    monitorType: METRICS
+  modules:
+    - io.trino.gateway.ha.module.QueryCountBasedRouterProvider
+  monitor:
+    # "metricMinimumValues", "taskDelaySeconds", "runningQueriesMetricName", "explicitPrepare",
+    # "retries", "metricsEndpoint", "queryTimeout", "queuedQueriesMetricName", "metricMaximumValues
+    metricsEndpoint: /metrics
+    retries: 1
+    taskDelaySeconds: 60
+    # runningQueriesMetricName: trino_execution_name_QueryManager_RunningQueries
+    # queuedQueriesMetricName: trino_execution_name_QueryManager_QueuedQueries
 ```
 
 ### Security
