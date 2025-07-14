@@ -19,19 +19,25 @@ config:
     user: postgres
     password: mysecretpassword
     driver: org.postgresql.Driver
+  # kubectl create secret generic datastore-yaml --from-file helm-trino-gateway/datastore.yaml --dry-run=client -o yaml --namespace trino | kubectl apply --namespace trino -f -
+  # backendStateSecret:
+  #   name: "datastore-yaml"
+  #   key: "datastore.yaml"
   routing:
     addXForwardedHeaders: false
   routingRules:
     rulesEngineEnabled: true
     rulesType: FILE
+    # kubectl create cm routing-rules --from-file helm-trino-gateway/routing-rules.yaml --namespace trino
     rulesConfigPath: /etc/trino-gateway/rules/routing-rules.yaml
-  modules:
-    - io.trino.gateway.ha.module.QueryCountBasedRouterProvider
   # BackendStateConfiguration is required for monitor type: METRICS
+  # check out: https://github.com/trinodb/trino-gateway/blob/main/docs/routers.md
   backendState:
     username: "user"
   clusterStatsConfiguration:
     monitorType: METRICS
+  modules:
+    - io.trino.gateway.ha.module.QueryCountBasedRouterProvider
   monitor:
     # "metricMinimumValues", "taskDelaySeconds", "runningQueriesMetricName", "explicitPrepare",
     # "retries", "metricsEndpoint", "queryTimeout", "queuedQueriesMetricName", "metricMaximumValues

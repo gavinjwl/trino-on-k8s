@@ -1,0 +1,5 @@
+dataStore:
+  jdbcUrl: jdbc:postgresql://yourdatabasehost:5432/gateway
+  user: postgres
+  password: mysecretpassword
+  driver: org.postgresql.Driver

@@ -20,6 +20,12 @@ dataStore:
   runMigrationsEnabled: false
 ```
 
+部署 PostgreSQL
+
+```bash
+kubectl apply -f postgresql/postgresql.yaml
+```
+
 ## AWS EKS
 
 ```bash
@@ -34,6 +40,18 @@ eksctl create nodegroup  -f eksctl-config.yaml
 
 ```bash
 helm upgrade trino-0 trino/trino --namespace trino --values helm-trino/trino-values.yaml --install
+```
+
+### Create file based routing rules
+
+```bash
+kubectl create cm routing-rules --from-file helm-trino-gateway/routing-rules.yaml --namespace trino
+```
+
+### Create PostgreSQL secret for Trino Gateway
+
+```bash
+kubectl create secret generic datastore-yaml --from-file helm-trino-gateway/datastore.yaml --dry-run=client -o yaml --namespace trino | kubectl apply --namespace trino -f -
 ```
 
 ### Trino Gateway
