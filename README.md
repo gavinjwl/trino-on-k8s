@@ -45,22 +45,40 @@ graph LR
     postgres -.->|"resouce_groups and selectors"| trino_cluster1["Trino Cluster"] & trino_cluster2["Trino Cluster"] & trino_cluster3["Trino Cluster"]
 ```
 
-Trino Gateway facilitates the management of resource groups across multiple Trino clusters, using the [database resource group manager](https://trino.io/docs/current/admin/resource-groups.html#database-resource-group-manager). It allows users to connect their Trino clusters to a centralized resource groups table maintained in the Trino Gateway's database. This setup enables management of resource groups either through the API or the Trino Gateway user interface.
+__IMPORTANT__: The query_history table stores limited information. To store more detailed query information, enable the [Kafka](https://trino.io/docs/current/admin/event-listeners-kafka.html), [HTTP](https://trino.io/docs/current/admin/event-listeners-http.html) or [MySQL](https://trino.io/docs/current/admin/event-listeners-mysql.html) listener in your Trino clusters.
+
+```sql
+CREATE TABLE IF NOT EXISTS query_history (
+    query_id VARCHAR(256) PRIMARY KEY,
+    query_text VARCHAR (256),
+    created bigint,
+    backend_url VARCHAR (256),
+    user_name VARCHAR(256),
+    source VARCHAR(256)
+);
+CREATE INDEX query_history_created_idx ON query_history(created);
+```
+
+> Trino Gateway facilitates the management of resource groups across multiple Trino clusters, using the [database resource group manager](https://trino.io/docs/current/admin/resource-groups.html#database-resource-group-manager). It allows users to connect their Trino clusters to a centralized resource groups table maintained in the Trino Gateway's database. This setup enables management of resource groups either through the API or the Trino Gateway user interface.
 
 ## Best practices
 
 ### Trino cluster lifecycle
 
-[reference](https://trinodb.github.io/trino-gateway/operation/#graceful-shutdown)
-
 ```mermaid
 flowchart LR
 1["Add Trino Cluster"] --> 2["Activate Trino Cluster"] --> 3["Serving"]
 3 --> 4
-4["Deactivate Trino Cluster"] --> 5["Gracful shutdown Trino cluster"] --> 6["Rmove Trino cluster"]
+4["Deactivate Trino Cluster"] --> 5["Poll the coordinator"] --> 6["Rmove Trino cluster"]
 ```
 
-[Trino has a graceful shutdown API that can be used exclusively on workers in order to ensure that they terminate without affecting running queries, given a sufficient grace period.](https://trino.io/docs/current/admin/graceful-shutdown.html)
+__IMPORTANT__: [graceful-shutdown](https://trinodb.github.io/trino-gateway/operation/#graceful-shutdown)
+
+1. Deactivate the cluster by turning off the 'Active' switch. This ensures that no new incoming queries are routed to the cluster.
+2. Poll the Trino cluster coordinator URL until the queued query count and the running query count are both zero.
+3. Terminate the Trino coordinator and worker Java processes.
+
+> [Trino has a graceful shutdown API that can be used exclusively on WORKERS in order to ensure that they terminate without affecting running queries, given a sufficient grace period.](https://trino.io/docs/current/admin/graceful-shutdown.html)
 
 ### Query routing rules
 
@@ -74,7 +92,7 @@ routingRules:
 
 Routing rules are defined in a configuration file or implemented in separate, custom service application. The connection to the separate service is configured as a URL. It can implement any dynamic rule changes or other behavior.
 
-The rules file will be re-read every minute by default. You may change this by setting `rulesRefreshPeriod: Duration`, where duration is an airlift style Duration such as `30s`.
+> The rules file will be re-read every minute by default. You may change this by setting `rulesRefreshPeriod: Duration`, where duration is an airlift style Duration such as `30s`.
 
 ```yaml
 routingRules:
@@ -94,7 +112,7 @@ routingRules:
         - 'Accept-Encoding'
 ```
 
-> Considering using an external routing service since file-based routing rules do not guarantee strong consistency.
+__IMPORTANT__: Considering using an external routing service since file-based routing rules do not guarantee strong consistency.
 
 #### Routing flow
 
@@ -102,7 +120,7 @@ routingRules:
 
 ![routing-flow](https://raw.githubusercontent.com/trinodb/trino-gateway/refs/heads/main/docs/assets/gateway-routing-flow.svg)
 
-> You MUST avoid the ordering issue by writing __atomic__ rules, so any query matches exactly one rule.
+__IMPORTANT__: You MUST avoid the ordering issue by writing __atomic__ rules, so any query matches exactly one rule.
 
 #### Routing rules in FILE format
 
