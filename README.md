@@ -67,6 +67,7 @@ flowchart LR
 By default, Trino Gateway reads the `X-Trino-Routing-Group` request header to route requests. If this header is not specified, requests are sent to the default routing group called `adhoc`.
 
 ```yaml
+# Change default routing group
 routingRules:
   defaultRoutingGroup: "test-group"
 ```
@@ -93,7 +94,7 @@ routingRules:
         - 'Accept-Encoding'
 ```
 
-> Considering using external routing service since file based routing rules doesn't promise strong-consistency.
+> Considering using an external routing service since file-based routing rules do not guarantee strong consistency.
 
 #### Routing flow
 
