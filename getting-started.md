@@ -12,12 +12,12 @@
 # Should be able to leverage ConfigMap or Secrets in K8S
 # Check out: https://trinodb.github.io/trino-gateway/installation/#helm
 dataStore:
-jdbcUrl: jdbc:postgresql://postgres:5432/trino_gateway_db
-user: USER
-password: PASSWORD
-driver: org.postgresql.Driver
-queryHistoryHoursRetention: 24
-runMigrationsEnabled: false
+  jdbcUrl: jdbc:postgresql://postgres:5432/trino_gateway_db
+  user: USER
+  password: PASSWORD
+  driver: org.postgresql.Driver
+  queryHistoryHoursRetention: 24
+  runMigrationsEnabled: false
 ```
 
 ## AWS EKS
@@ -79,4 +79,7 @@ helm upgrade trino-gateway trino/trino-gateway --namespace trino --values helm-t
 SCHEMA=""
 SAMPLE_STATEMENT=""
 trino --catalog iceberg --schema $SCHEMA --debug --execute $SAMPLE_STATEMENT
+
+trino --catalog iceberg --schema default --execute 'select 1' --debug localhost:8080
+trino --catalog iceberg --schema default --execute 'select 10' --source airflow --debug localhost:8080
 ```
